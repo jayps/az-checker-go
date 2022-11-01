@@ -8,12 +8,6 @@ import (
 	"time"
 )
 
-func outputResourceAlerts(resources map[string]azure.Resource) {
-	for k, v := range resources {
-		fmt.Println(fmt.Sprintf("%s has %d alert rules", k, len(v.AlertRules)))
-	}
-}
-
 func getSubscriptionId() string {
 	fmt.Println("Enter the subscription ID you are checking:")
 
