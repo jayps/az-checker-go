@@ -2,9 +2,13 @@ package azure
 
 import (
 	"fmt"
+	"log"
 	"os/exec"
 )
 
 func SetSubscription(subscriptionId string) {
-	exec.Command(fmt.Sprintf("az account set --subscription %s", subscriptionId))
+	_, err := exec.Command("powershell", fmt.Sprintf("az account set --subscription %s", subscriptionId)).Output()
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Could not set subscription ID: %s", err.Error()))
+	}
 }
