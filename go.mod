@@ -1,4 +1,4 @@
-module azurechecker
+module github.com/jayps/azure-checker-go
 
 go 1.19
 

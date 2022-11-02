@@ -1,9 +1,9 @@
 package main
 
 import (
-	"azurechecker/azure"
-	"azurechecker/excel"
 	"fmt"
+	"github.com/jayps/azure-checker-go/azure"
+	"github.com/jayps/azure-checker-go/excel"
 	"log"
 	"time"
 )

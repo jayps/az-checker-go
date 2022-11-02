@@ -1,8 +1,8 @@
 package excel
 
 import (
-	"azurechecker/azure"
 	"fmt"
+	"github.com/jayps/azure-checker-go/azure"
 	"github.com/xuri/excelize/v2"
 	"log"
 )
