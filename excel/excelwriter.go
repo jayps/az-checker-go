@@ -7,43 +7,83 @@ import (
 	"log"
 )
 
-func addHeading(f *excelize.File, sheet string, cellLocation string, text string) {
-	boldStyle, err := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{
-			Bold: true,
-		},
-	})
+func addStyledCell(f *excelize.File, sheet string, cellLocation string, text string, style int) {
+	err := f.SetCellValue(sheet, cellLocation, text)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln("Failed to set cell value at", cellLocation, "to", text, "on sheet", sheet, ". Error: ", err.Error())
 	}
 
-	err = f.SetCellValue(sheet, cellLocation, text)
-	if err != nil {
-		log.Fatalln("Failed to set cell value at", cellLocation, "to", text)
-	}
-
-	err = f.SetCellStyle(sheet, cellLocation, cellLocation, boldStyle)
+	err = f.SetCellStyle(sheet, cellLocation, cellLocation, style)
 	if err != nil {
 		log.Fatalln("Failed to set cell style at", cellLocation)
 	}
 }
 
+func addHeading(f *excelize.File, sheet string, cellLocation string, text string) {
+	boldStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 20,
+		},
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	addStyledCell(f, sheet, cellLocation, text, boldStyle)
+}
+
+func addBoldCell(f *excelize.File, sheet string, cellLocation string, text string) {
+	boldStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+		},
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	addStyledCell(f, sheet, cellLocation, text, boldStyle)
+}
+
 func writeCell(f *excelize.File, sheet string, cellLocation string, text string) {
 	err := f.SetCellValue(sheet, cellLocation, text)
 	if err != nil {
-		log.Fatalln("Failed to set cell value at", cellLocation, "to", text)
+		log.Fatalln("Failed to set cell value at", cellLocation, "to", text, "on sheet", sheet, ". Error: ", err.Error())
 	}
 }
 
-func writeResourceAlerts(f *excelize.File, title string, lineIndex *int, resources map[string]azure.Resource) {
-	addHeading(f, "Alerts", fmt.Sprintf("A%d", *lineIndex), title)
-	addHeading(f, "Alerts", fmt.Sprintf("B%d", *lineIndex), fmt.Sprintf("%d resources checked", len(resources)))
-	*lineIndex++
+func writeResourceAlerts(f *excelize.File, sheet string, resources map[string]azure.Resource) {
+	lineIndex := 1
+	addHeading(f, sheet, fmt.Sprintf("A%d", lineIndex), fmt.Sprintf("%d resources found", len(resources)))
+	lineIndex++
 
 	for _, resource := range resources {
-		writeCell(f, "Alerts", fmt.Sprintf("A%d", *lineIndex), resource.Name)
-		writeCell(f, "Alerts", fmt.Sprintf("B%d", *lineIndex), fmt.Sprintf("%d alerts configured", len(resource.AlertRules)))
-		*lineIndex++
+		addBoldCell(f, sheet, fmt.Sprintf("A%d", lineIndex), resource.Name)
+		addBoldCell(f, sheet, fmt.Sprintf("B%d", lineIndex), fmt.Sprintf("%d alerts configured", len(resource.AlertRules)))
+		lineIndex++
+
+		if len(resource.AlertRules) > 0 {
+			addBoldCell(f, sheet, fmt.Sprintf("B%d", lineIndex), "Name")
+			addBoldCell(f, sheet, fmt.Sprintf("C%d", lineIndex), "Criteria")
+			lineIndex++
+
+			for _, alertRule := range resource.AlertRules {
+				writeCell(f, sheet, fmt.Sprintf("B%d", lineIndex), alertRule.Name)
+
+				for _, criterion := range alertRule.Criteria.AllOf {
+					criterionOutput := fmt.Sprintf("%s %s %s %s", criterion.TimeAggregation,
+						criterion.MetricName,
+						criterion.Operator,
+						fmt.Sprintf("%.2f", criterion.Threshold),
+					)
+					writeCell(f, sheet, fmt.Sprintf("C%d", lineIndex), criterionOutput)
+					lineIndex++
+				}
+			}
+		}
 	}
 }
 
@@ -98,16 +138,42 @@ func OutputExcelDocument(
 ) {
 	f := excelize.NewFile()
 
-	// Add VMs to Alerts sheet
-	f.SetSheetName("Sheet1", "Alerts")
-	lineIndex := 1
-	writeResourceAlerts(f, "Virtual machines", &lineIndex, vms)
-	writeResourceAlerts(f, "AKS clusters", &lineIndex, aksClusters)
-	writeResourceAlerts(f, "MySQL servers", &lineIndex, mySQLServers)
-	writeResourceAlerts(f, "Flexible MySQL servers", &lineIndex, flexibleMySQLServers)
-	writeResourceAlerts(f, "SQL servers", &lineIndex, sqlServers)
-	writeResourceAlerts(f, "Storage accounts", &lineIndex, storageAccounts)
-	writeResourceAlerts(f, "Web apps", &lineIndex, webApps)
+	if len(vms) > 0 {
+		f.SetSheetName("Sheet1", "VM Alerts")
+		writeResourceAlerts(f, "VM Alerts", vms)
+	} else {
+		f.DeleteSheet("Sheet1")
+	}
+
+	if len(aksClusters) > 0 {
+		f.NewSheet("AKS Cluster Alerts")
+		writeResourceAlerts(f, "AKS Cluster Alerts", aksClusters)
+	}
+
+	if len(mySQLServers) > 0 {
+		f.NewSheet("MySQL Server Alerts")
+		writeResourceAlerts(f, "MySQL Server Alerts", mySQLServers)
+	}
+
+	if len(flexibleMySQLServers) > 0 {
+		f.NewSheet("Flexible MySQL Server Alerts")
+		writeResourceAlerts(f, "Flexible MySQL Server Alerts", flexibleMySQLServers)
+	}
+
+	if len(sqlServers) > 0 {
+		f.NewSheet("SQL Server Alerts")
+		writeResourceAlerts(f, "SQL Server Alerts", sqlServers)
+	}
+
+	if len(storageAccounts) > 0 {
+		f.NewSheet("Storage Account Alerts")
+		writeResourceAlerts(f, "Storage Account Alerts", storageAccounts)
+	}
+
+	if len(webApps) > 0 {
+		f.NewSheet("Web App Alerts")
+		writeResourceAlerts(f, "Web App Alerts", webApps)
+	}
 
 	// Backups
 	f.NewSheet("Backups")

@@ -7,9 +7,27 @@ import (
 	"strings"
 )
 
+type AllOf struct {
+	MetricName      string  `json:"metricName"`
+	MetricNamespace string  `json:"metricNamespace"`
+	Name            string  `json:"name"`
+	Operator        string  `json:"operator"`
+	Threshold       float32 `json:"threshold"`
+	TimeAggregation string  `json:"timeAggregation"`
+}
+
+type AlertRuleCriteria struct {
+	AllOf               []AllOf `json:"allOf"`
+	Enabled             bool    `json:"enabled"`
+	EvaluationFrequency bool    `json:"evaluationFrequency"`
+	WindowSize          bool    `json:"windowSize"`
+}
+
 type AlertRule struct {
-	Scopes []string `json:"scopes"`
-	Id     string   `json:"id"`
+	Scopes   []string          `json:"scopes"`
+	Name     string            `json:"name"`
+	Id       string            `json:"id"`
+	Criteria AlertRuleCriteria `json:"criteria"`
 }
 
 func FetchAlertRules() []AlertRule {
