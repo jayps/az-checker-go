@@ -75,4 +75,6 @@ func main() {
 		recommendations,
 	)
 
+	fmt.Println("All done, press Enter to exit.")
+	fmt.Scanln()
 }
