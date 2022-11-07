@@ -5,19 +5,22 @@ import (
 	"github.com/jayps/azure-checker-go/azure"
 	"github.com/jayps/azure-checker-go/excel"
 	"log"
+	"strings"
 	"time"
 )
 
-func getSubscriptionId() string {
-	fmt.Println("Enter the subscription ID you are checking:")
+func getSubscriptionIds() []string {
+	fmt.Println("Enter a comma separated list of subscription IDs you are checking:")
 
-	var subscriptionId string
-	_, err := fmt.Scanln(&subscriptionId)
+	var subscriptionIdsInput string
+	_, err := fmt.Scanln(&subscriptionIdsInput)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
 
-	return subscriptionId
+	subscriptionIds := strings.Split(subscriptionIdsInput, ",")
+
+	return subscriptionIds
 }
 
 func getFilename() string {
@@ -34,46 +37,51 @@ func getFilename() string {
 
 func main() {
 
-	subscriptionId := getSubscriptionId()
+	subscriptionIds := getSubscriptionIds()
 	filename := getFilename()
 
-	azure.SetSubscription(subscriptionId)
-	fmt.Println(fmt.Sprintf("Set subscription ID to %s...", subscriptionId))
+	for i := 0; i < len(subscriptionIds); i++ {
+		subscriptionId := subscriptionIds[i]
+		azure.SetSubscription(subscriptionId)
+		fmt.Println(fmt.Sprintf("Set subscription ID to %s...", subscriptionId))
 
-	// Fetch resources
-	vms := azure.FetchVMs()
-	aksClusters := azure.FetchAKSClusters()
-	mySQLServers := azure.FetchMySQLServers()
-	flexibleMySQLServers := azure.FetchFlexibleMySQLServers()
-	sqlServers := azure.FetchSQLServers()
-	storageAccounts := azure.FetchStorageAccounts()
-	webApps := azure.FetchWebApps()
-	alertRules := azure.FetchAlertRules()
+		// Fetch resources
+		vms := azure.FetchVMs()
+		aksClusters := azure.FetchAKSClusters()
+		mySQLServers := azure.FetchMySQLServers()
+		flexibleMySQLServers := azure.FetchFlexibleMySQLServers()
+		sqlServers := azure.FetchSQLServers()
+		storageAccounts := azure.FetchStorageAccounts()
+		webApps := azure.FetchWebApps()
+		alertRules := azure.FetchAlertRules()
 
-	// Assign alert rules
-	azure.AssignAlertRulesToResources(alertRules, vms)
-	azure.AssignAlertRulesToResources(alertRules, aksClusters)
-	azure.AssignAlertRulesToResources(alertRules, mySQLServers)
-	azure.AssignAlertRulesToResources(alertRules, flexibleMySQLServers)
-	azure.AssignAlertRulesToResources(alertRules, sqlServers)
-	azure.AssignAlertRulesToResources(alertRules, storageAccounts)
-	azure.AssignAlertRulesToResources(alertRules, webApps)
+		// Assign alert rules
+		azure.AssignAlertRulesToResources(alertRules, vms)
+		azure.AssignAlertRulesToResources(alertRules, aksClusters)
+		azure.AssignAlertRulesToResources(alertRules, mySQLServers)
+		azure.AssignAlertRulesToResources(alertRules, flexibleMySQLServers)
+		azure.AssignAlertRulesToResources(alertRules, sqlServers)
+		azure.AssignAlertRulesToResources(alertRules, storageAccounts)
+		azure.AssignAlertRulesToResources(alertRules, webApps)
 
-	azure.FetchVMBackups(vms)
-	recommendations := azure.FetchAdvisorRecommendations()
+		azure.FetchVMBackups(vms)
+		recommendations := azure.FetchAdvisorRecommendations()
 
-	now := time.Now()
-	excel.OutputExcelDocument(
-		fmt.Sprintf("%s-%s-%d-%d-%d", filename, subscriptionId, now.Year(), now.Month(), now.Day()),
-		vms,
-		aksClusters,
-		mySQLServers,
-		flexibleMySQLServers,
-		sqlServers,
-		storageAccounts,
-		webApps,
-		recommendations,
-	)
+		now := time.Now()
+		outputFilename := fmt.Sprintf("%s-%s-%d-%d-%d", filename, subscriptionId, now.Year(), now.Month(), now.Day())
+		fmt.Println(fmt.Sprintf("Saving checks for subscription ID %s to %s...", subscriptionId, outputFilename))
+		excel.OutputExcelDocument(
+			outputFilename,
+			vms,
+			aksClusters,
+			mySQLServers,
+			flexibleMySQLServers,
+			sqlServers,
+			storageAccounts,
+			webApps,
+			recommendations,
+		)
+	}
 
 	fmt.Println("All done, press Enter to exit.")
 	fmt.Scanln()
