@@ -14,3 +14,7 @@ If you want the tool to do more stuff, contact me or create an issue on the repo
 
 ## Compiling from source
 You can compile the tool yourself if you like. You'll need to have [Golang](https://go.dev/doc/install) installed on your machine. From there, you can just run `go run main.go`.
+
+## TODO
+- Feature: Add MS Word export of results that can then be edited and extended.
+- Add Patch reviews (if possible)
