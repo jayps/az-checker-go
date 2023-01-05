@@ -98,6 +98,12 @@ func main() {
 		azure.FetchVMBackups(vms)
 		recommendations := azure.FetchAdvisorRecommendations()
 
+		for _, vm := range vms {
+			azure.AssessPatches(&vm)
+			fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
+			break
+		}
+
 		now := time.Now()
 		outputFilename := fmt.Sprintf("%s-%s-%d-%d-%d", clientName, subscriptionId, now.Year(), now.Month(), now.Day())
 
