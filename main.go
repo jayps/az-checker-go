@@ -98,10 +98,14 @@ func main() {
 		azure.FetchVMBackups(vms)
 		recommendations := azure.FetchAdvisorRecommendations()
 
-		for _, vm := range vms {
+		for key, vm := range vms {
 			azure.AssessPatches(&vm)
 			fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
-			break
+			vms[key] = vm // range gives us a copy of the vm we are working with, so we reassign it back to the map.
+		}
+
+		for _, vm := range vms {
+			fmt.Println(fmt.Sprintf("POST ASSESSMENT: %d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
 		}
 
 		now := time.Now()

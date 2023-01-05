@@ -175,6 +175,31 @@ func (g Generator) GenerateBackupsSection() string {
 	return output
 }
 
+func (g Generator) GeneratePatchesSection() string {
+	if len(g.VirtualMachines) == 0 {
+		return ""
+	}
+	output := "<div class='page-break-before'>"
+	output += fmt.Sprintf("<h2>Virtual Machine Patches</h2>")
+	for _, vm := range g.VirtualMachines {
+		fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
+		output += fmt.Sprintf("<h3>%s</h3>", vm.Name)
+		output += fmt.Sprintf("<span class='mb-1'>%d patches available.", len(vm.PatchAssessmentResult.AvailablePatches))
+		for _, patch := range vm.PatchAssessmentResult.AvailablePatches {
+			output += "<div class='mb-1 page-break-avoid bg-grey p-1'>"
+			output += fmt.Sprintf("<strong>Patch Name: %s</strong><br />", patch.Name)
+			output += fmt.Sprintf("<strong>Patch ID: %s</strong><br />", patch.PatchId)
+			output += fmt.Sprintf("<strong>KB ID: %s</strong><br />", patch.KbId)
+			output += fmt.Sprintf("<strong>Version: %s</strong><br />", patch.Version)
+			output += fmt.Sprintf("<strong>Reboot: %s</strong><br />", patch.RebootBehavior)
+			output += "</div>" // page break avoid
+		}
+	}
+	output += "</div>" // page break before
+
+	return output
+}
+
 func (g Generator) GenerateRecommendationsSections() string {
 	output := "<div class='page-break-before'>"
 	for category, categoryRecommendations := range g.Recommendations {
@@ -238,6 +263,7 @@ Document Date: {date}
 {webApps}
 {backups}
 {recommendations}
+{patches}
 </body>
 </html>`
 
@@ -255,6 +281,7 @@ Document Date: {date}
 		"{storageAccounts}", g.GenerateAlertRulesSection("Storage Accounts", g.StorageAccounts),
 		"{webApps}", g.GenerateAlertRulesSection("Web Apps", g.WebApps),
 		"{backups}", g.GenerateBackupsSection(),
+		"{patches}", g.GeneratePatchesSection(),
 		"{recommendations}", g.GenerateRecommendationsSections(),
 	)
 	populatedHtml := documentReplacer.Replace(htmlStr)
