@@ -34,16 +34,22 @@ type PatchAssessmentResult struct {
 	Status          string    `json:"status"`
 }
 
-func AssessPatches(vm *Resource) PatchAssessmentResult {
+func AssessPatches(vm *Resource) error {
 	fmt.Println(fmt.Sprintf("Assessing patches for VM: %s... This might take a minute. Grab some coffee.", vm.Name))
-	output := RunCommand(fmt.Sprintf("az vm assess-patches -n %s -g %s", vm.Name, vm.ResourceGroup))
-	var patchAssessmentResult PatchAssessmentResult
-	err := json.Unmarshal(output, &patchAssessmentResult)
-	vm.PatchAssessmentResult = patchAssessmentResult
+	output, err := RunCommand(fmt.Sprintf("az vm assess-patches -n %s -g %s", vm.Name, vm.ResourceGroup))
 
 	if err != nil {
-		fmt.Println("Could not load patch assessment", err.Error())
+		return err
 	}
 
-	return patchAssessmentResult
+	var patchAssessmentResult PatchAssessmentResult
+	err = json.Unmarshal(output, &patchAssessmentResult)
+	vm.PatchAssessmentResult = patchAssessmentResult
+
+	// Don't necessarily crash on this, just alert the user to it.
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

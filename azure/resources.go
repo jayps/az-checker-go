@@ -3,7 +3,6 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -18,18 +17,24 @@ type Resource struct {
 }
 
 func getResourceList(command string) ([]Resource, error) {
-	output := RunCommand(command)
+	output, err := RunCommand(command)
+
+	if err != nil {
+		return nil, err
+	}
+
 	var vms []Resource
-	err := json.Unmarshal(output, &vms)
+	err = json.Unmarshal(output, &vms)
+
 	return vms, err
 }
 
-func getResourceMap(command string, name string) map[string]Resource {
+func getResourceMap(command string, name string) (map[string]Resource, error) {
 	fmt.Println(fmt.Sprintf("Fetching %s...", name))
 	vms, err := getResourceList(command)
 
 	if err != nil {
-		log.Fatalln(fmt.Sprintf("Could not fetch %s: ", name), err.Error())
+		return nil, err
 	}
 
 	result := make(map[string]Resource)
@@ -37,59 +42,59 @@ func getResourceMap(command string, name string) map[string]Resource {
 		result[strings.ToLower(vms[i].Id)] = vms[i]
 	}
 
-	return result
+	return result, nil
 }
 
-func FetchVMs() map[string]Resource {
+func FetchVMs() (map[string]Resource, error) {
 	command := "az vm list"
 	resourceName := "virtual machines"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchAKSClusters() map[string]Resource {
+func FetchAKSClusters() (map[string]Resource, error) {
 	command := "az aks list"
 	resourceName := "AKS clusters"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchMySQLServers() map[string]Resource {
+func FetchMySQLServers() (map[string]Resource, error) {
 	command := "az mysql server list"
 	resourceName := "mysql servers"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchFlexibleMySQLServers() map[string]Resource {
+func FetchFlexibleMySQLServers() (map[string]Resource, error) {
 	command := "az mysql flexible-server list"
 	resourceName := "flexible mysql servers"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchSQLServers() map[string]Resource {
+func FetchSQLServers() (map[string]Resource, error) {
 	command := "az sql server list"
 	resourceName := "sql servers"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchStorageAccounts() map[string]Resource {
+func FetchStorageAccounts() (map[string]Resource, error) {
 	command := "az storage account list"
 	resourceName := "storage accounts"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchWebApps() map[string]Resource {
+func FetchWebApps() (map[string]Resource, error) {
 	command := "az webapp list"
 	resourceName := "web apps"
 
 	return getResourceMap(command, resourceName)
 }
 
-func FetchResourceDetails(resourceId string) []byte {
+func FetchResourceDetails(resourceId string) ([]byte, error) {
 	command := fmt.Sprintf("az resource show --ids %s", resourceId)
 
 	return RunCommand(command)

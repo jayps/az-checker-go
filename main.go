@@ -36,55 +36,58 @@ func getFilename() string {
 	return filename
 }
 
-func getYesNoChoice(question string, defaultAnswer bool) bool {
-	defaultAnswerString := "Y/n"
-	if !defaultAnswer {
-		defaultAnswerString = "y/N"
-	}
-
-	fmt.Println(fmt.Sprintf("%s %s", question, defaultAnswerString))
-
-	var answer string
-	_, err := fmt.Scanln(&answer)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	answer = strings.ToLower(answer)
-
-	if answer == "" {
-		return defaultAnswer
-	}
-
-	return answer == "y"
-}
-
 func main() {
-
 	subscriptionIds := getSubscriptionIds()
 	clientName := getFilename()
-	generatePdfFile := getYesNoChoice("Do you want to generate a PDF report?", true)
-	generateExcelFile := getYesNoChoice("Do you want to generate an Excel report?", true)
-
-	if !generatePdfFile && !generateExcelFile {
-		fmt.Println("You must select at least one output file type.")
-		return
-	}
 
 	for i := 0; i < len(subscriptionIds); i++ {
 		subscriptionId := subscriptionIds[i]
-		azure.SetSubscription(subscriptionId)
+		err := azure.SetSubscription(subscriptionId)
+		if err != nil {
+			log.Fatalln("Could not set subscription: ", err.Error())
+		}
 		fmt.Println(fmt.Sprintf("Set subscription ID to %s...", subscriptionId))
 
 		// Fetch resources
-		vms := azure.FetchVMs()
-		aksClusters := azure.FetchAKSClusters()
-		mySQLServers := azure.FetchMySQLServers()
-		flexibleMySQLServers := azure.FetchFlexibleMySQLServers()
-		sqlServers := azure.FetchSQLServers()
-		storageAccounts := azure.FetchStorageAccounts()
-		webApps := azure.FetchWebApps()
-		alertRules := azure.FetchAlertRules()
+		vms, err := azure.FetchVMs()
+		if err != nil {
+			log.Fatalln("Could not fetch VMs: ", err.Error())
+		}
+
+		aksClusters, err := azure.FetchAKSClusters()
+		if err != nil {
+			log.Fatalln("Could not fetch AKS clusters: ", err.Error())
+		}
+
+		mySQLServers, err := azure.FetchMySQLServers()
+		if err != nil {
+			log.Fatalln("Could not fetch MySQL servers: ", err.Error())
+		}
+
+		flexibleMySQLServers, err := azure.FetchFlexibleMySQLServers()
+		if err != nil {
+			log.Fatalln("Could not fetch flexible MySQL servers: ", err.Error())
+		}
+
+		sqlServers, err := azure.FetchSQLServers()
+		if err != nil {
+			log.Fatalln("Could not fetch SQL servers: ", err.Error())
+		}
+
+		storageAccounts, err := azure.FetchStorageAccounts()
+		if err != nil {
+			log.Fatalln("Could not fetch storage accounts: ", err.Error())
+		}
+
+		webApps, err := azure.FetchWebApps()
+		if err != nil {
+			log.Fatalln("Could not fetch web apps: ", err.Error())
+		}
+
+		alertRules, err := azure.FetchAlertRules()
+		if err != nil {
+			log.Fatalln("Could not fetch alert rules: ", err.Error())
+		}
 
 		// Assign alert rules
 		azure.AssignAlertRulesToResources(alertRules, vms)
@@ -95,11 +98,21 @@ func main() {
 		azure.AssignAlertRulesToResources(alertRules, storageAccounts)
 		azure.AssignAlertRulesToResources(alertRules, webApps)
 
-		azure.FetchVMBackups(vms)
-		recommendations := azure.FetchAdvisorRecommendations()
+		err = azure.FetchVMBackups(vms)
+		if err != nil {
+			log.Fatalln("Could not fetch VM backups: ", err.Error())
+		}
+
+		recommendations, err := azure.FetchAdvisorRecommendations()
+		if err != nil {
+			log.Fatalln("Could not fetch advisor recommendations: ", err.Error())
+		}
 
 		for key, vm := range vms {
-			azure.AssessPatches(&vm)
+			err = azure.AssessPatches(&vm)
+			if err != nil {
+				log.Fatalln(fmt.Sprintf("Could not assess patches for VM %s: ", vm.Name), err.Error())
+			}
 			fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
 			vms[key] = vm // range gives us a copy of the vm we are working with, so we reassign it back to the map.
 		}
@@ -111,36 +124,34 @@ func main() {
 		now := time.Now()
 		outputFilename := fmt.Sprintf("%s-%s-%d-%d-%d", clientName, subscriptionId, now.Year(), now.Month(), now.Day())
 
-		if generatePdfFile {
-			g := pdf.NewGenerator()
-			g.ClientName = clientName
-			g.OutputFilename = outputFilename
-			g.VirtualMachines = vms
-			g.AzureKubernetesServices = aksClusters
-			g.MySQLServers = mySQLServers
-			g.FlexibleMySQLServers = flexibleMySQLServers
-			g.SqlServers = sqlServers
-			g.StorageAccounts = storageAccounts
-			g.WebApps = webApps
-			g.Recommendations = recommendations
-			err := g.GeneratePDF()
-			if err != nil {
-				log.Fatal(err)
-			}
+		g := pdf.NewGenerator()
+		g.ClientName = clientName
+		g.OutputFilename = outputFilename
+		g.VirtualMachines = vms
+		g.AzureKubernetesServices = aksClusters
+		g.MySQLServers = mySQLServers
+		g.FlexibleMySQLServers = flexibleMySQLServers
+		g.SqlServers = sqlServers
+		g.StorageAccounts = storageAccounts
+		g.WebApps = webApps
+		g.Recommendations = recommendations
+		err = g.GeneratePDF()
+		if err != nil {
+			log.Fatalln(err)
 		}
-
-		if generateExcelFile {
-			excel.OutputExcelDocument(
-				outputFilename,
-				vms,
-				aksClusters,
-				mySQLServers,
-				flexibleMySQLServers,
-				sqlServers,
-				storageAccounts,
-				webApps,
-				recommendations,
-			)
+		err = excel.OutputExcelDocument(
+			outputFilename,
+			vms,
+			aksClusters,
+			mySQLServers,
+			flexibleMySQLServers,
+			sqlServers,
+			storageAccounts,
+			webApps,
+			recommendations,
+		)
+		if err != nil {
+			log.Fatalln("Could not generate excel file: ", err.Error())
 		}
 	}
 
