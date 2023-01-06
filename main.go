@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jayps/azure-checker-go/azure"
 	"github.com/jayps/azure-checker-go/excel"
+	"github.com/jayps/azure-checker-go/pdf"
 	"log"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ func getSubscriptionIds() []string {
 }
 
 func getFilename() string {
-	fmt.Println("Enter a filename for the output document:")
+	fmt.Println("Enter the name of the client:")
 
 	var filename string
 	_, err := fmt.Scanln(&filename)
@@ -35,10 +36,40 @@ func getFilename() string {
 	return filename
 }
 
+func getYesNoChoice(question string, defaultAnswer bool) bool {
+	defaultAnswerString := "Y/n"
+	if !defaultAnswer {
+		defaultAnswerString = "y/N"
+	}
+
+	fmt.Println(fmt.Sprintf("%s %s", question, defaultAnswerString))
+
+	var answer string
+	_, err := fmt.Scanln(&answer)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	answer = strings.ToLower(answer)
+
+	if answer == "" {
+		return defaultAnswer
+	}
+
+	return answer == "y"
+}
+
 func main() {
 
 	subscriptionIds := getSubscriptionIds()
-	filename := getFilename()
+	clientName := getFilename()
+	generatePdfFile := getYesNoChoice("Do you want to generate a PDF report?", true)
+	generateExcelFile := getYesNoChoice("Do you want to generate an Excel report?", true)
+
+	if !generatePdfFile && !generateExcelFile {
+		fmt.Println("You must select at least one output file type.")
+		return
+	}
 
 	for i := 0; i < len(subscriptionIds); i++ {
 		subscriptionId := subscriptionIds[i]
@@ -67,22 +98,51 @@ func main() {
 		azure.FetchVMBackups(vms)
 		recommendations := azure.FetchAdvisorRecommendations()
 
+		for key, vm := range vms {
+			azure.AssessPatches(&vm)
+			fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
+			vms[key] = vm // range gives us a copy of the vm we are working with, so we reassign it back to the map.
+		}
+
+		for _, vm := range vms {
+			fmt.Println(fmt.Sprintf("POST ASSESSMENT: %d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
+		}
+
 		now := time.Now()
-		outputFilename := fmt.Sprintf("%s-%s-%d-%d-%d", filename, subscriptionId, now.Year(), now.Month(), now.Day())
-		fmt.Println(fmt.Sprintf("Saving checks for subscription ID %s to %s...", subscriptionId, outputFilename))
-		excel.OutputExcelDocument(
-			outputFilename,
-			vms,
-			aksClusters,
-			mySQLServers,
-			flexibleMySQLServers,
-			sqlServers,
-			storageAccounts,
-			webApps,
-			recommendations,
-		)
+		outputFilename := fmt.Sprintf("%s-%s-%d-%d-%d", clientName, subscriptionId, now.Year(), now.Month(), now.Day())
+
+		if generatePdfFile {
+			g := pdf.NewGenerator()
+			g.ClientName = clientName
+			g.OutputFilename = outputFilename
+			g.VirtualMachines = vms
+			g.AzureKubernetesServices = aksClusters
+			g.MySQLServers = mySQLServers
+			g.FlexibleMySQLServers = flexibleMySQLServers
+			g.SqlServers = sqlServers
+			g.StorageAccounts = storageAccounts
+			g.WebApps = webApps
+			g.Recommendations = recommendations
+			err := g.GeneratePDF()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		if generateExcelFile {
+			excel.OutputExcelDocument(
+				outputFilename,
+				vms,
+				aksClusters,
+				mySQLServers,
+				flexibleMySQLServers,
+				sqlServers,
+				storageAccounts,
+				webApps,
+				recommendations,
+			)
+		}
 	}
 
-	fmt.Println("All done, press Enter to exit.")
-	fmt.Scanln()
+	fmt.Println("All done.")
 }

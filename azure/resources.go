@@ -8,12 +8,13 @@ import (
 )
 
 type Resource struct {
-	Id            string `json:"id"`
-	Type          string `json:"type"`
-	Name          string `json:"name"`
-	ResourceGroup string `json:"resourceGroup"`
-	AlertRules    []AlertRule
-	BackupVault   *Resource // For VMs only, I'll separate this later.
+	Id                    string `json:"id"`
+	Type                  string `json:"type"`
+	Name                  string `json:"name"`
+	ResourceGroup         string `json:"resourceGroup"`
+	AlertRules            []AlertRule
+	BackupVault           *Resource             // For VMs only, I'll separate this later.
+	PatchAssessmentResult PatchAssessmentResult // For VMs only
 }
 
 func getResourceList(command string) ([]Resource, error) {

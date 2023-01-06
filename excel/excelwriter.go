@@ -126,7 +126,7 @@ func writeRecommendations(f *excelize.File, recommendations map[string][]azure.A
 }
 
 func OutputExcelDocument(
-	filename string,
+	outputFilename string,
 	vms map[string]azure.Resource,
 	aksClusters map[string]azure.Resource,
 	mySQLServers map[string]azure.Resource,
@@ -181,9 +181,10 @@ func OutputExcelDocument(
 
 	writeRecommendations(f, recommendations)
 
-	if err := f.SaveAs(fmt.Sprintf("%s.xlsx", filename)); err != nil {
+	filename := fmt.Sprintf("%s.xlsx", outputFilename)
+	if err := f.SaveAs(filename); err != nil {
 		fmt.Println("Could not save output document", err)
 	} else {
-		fmt.Println("Saved output document")
+		fmt.Println(fmt.Sprintf("Saved excel file to %s", filename))
 	}
 }
