@@ -4,22 +4,23 @@ import (
 	"fmt"
 	"github.com/jayps/azure-checker-go/azure"
 	"github.com/xuri/excelize/v2"
-	"log"
 )
 
-func addStyledCell(f *excelize.File, sheet string, cellLocation string, text string, style int) {
+func addStyledCell(f *excelize.File, sheet string, cellLocation string, text string, style int) error {
 	err := f.SetCellValue(sheet, cellLocation, text)
 	if err != nil {
-		log.Fatalln("Failed to set cell value at", cellLocation, "to", text, "on sheet", sheet, ". Error: ", err.Error())
+		return err
 	}
 
 	err = f.SetCellStyle(sheet, cellLocation, cellLocation, style)
 	if err != nil {
-		log.Fatalln("Failed to set cell style at", cellLocation)
+		return err
 	}
+
+	return nil
 }
 
-func addHeading(f *excelize.File, sheet string, cellLocation string, text string) {
+func addHeading(f *excelize.File, sheet string, cellLocation string, text string) error {
 	boldStyle, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
 			Bold: true,
@@ -28,13 +29,13 @@ func addHeading(f *excelize.File, sheet string, cellLocation string, text string
 	})
 
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
-	addStyledCell(f, sheet, cellLocation, text, boldStyle)
+	return addStyledCell(f, sheet, cellLocation, text, boldStyle)
 }
 
-func addBoldCell(f *excelize.File, sheet string, cellLocation string, text string) {
+func addBoldCell(f *excelize.File, sheet string, cellLocation string, text string) error {
 	boldStyle, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
 			Bold: true,
@@ -42,36 +43,58 @@ func addBoldCell(f *excelize.File, sheet string, cellLocation string, text strin
 	})
 
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
-	addStyledCell(f, sheet, cellLocation, text, boldStyle)
+	return addStyledCell(f, sheet, cellLocation, text, boldStyle)
 }
 
-func writeCell(f *excelize.File, sheet string, cellLocation string, text string) {
+func writeCell(f *excelize.File, sheet string, cellLocation string, text string) error {
 	err := f.SetCellValue(sheet, cellLocation, text)
 	if err != nil {
-		log.Fatalln("Failed to set cell value at", cellLocation, "to", text, "on sheet", sheet, ". Error: ", err.Error())
+		return err
 	}
+
+	return nil
 }
 
-func writeResourceAlerts(f *excelize.File, sheet string, resources map[string]azure.Resource) {
+func writeResourceAlerts(f *excelize.File, sheet string, resources map[string]azure.Resource) error {
 	lineIndex := 1
-	addHeading(f, sheet, fmt.Sprintf("A%d", lineIndex), fmt.Sprintf("%d resources found", len(resources)))
+	err := addHeading(f, sheet, fmt.Sprintf("A%d", lineIndex), fmt.Sprintf("%d resources found", len(resources)))
+	if err != nil {
+		return err
+	}
 	lineIndex++
 
 	for _, resource := range resources {
-		addBoldCell(f, sheet, fmt.Sprintf("A%d", lineIndex), resource.Name)
-		addBoldCell(f, sheet, fmt.Sprintf("B%d", lineIndex), fmt.Sprintf("%d alerts configured", len(resource.AlertRules)))
+		err = addBoldCell(f, sheet, fmt.Sprintf("A%d", lineIndex), resource.Name)
+		if err != nil {
+			return err
+		}
+		err = addBoldCell(f, sheet, fmt.Sprintf("B%d", lineIndex), fmt.Sprintf("%d alerts configured", len(resource.AlertRules)))
+		if err != nil {
+			return err
+		}
 		lineIndex++
 
 		if len(resource.AlertRules) > 0 {
-			addBoldCell(f, sheet, fmt.Sprintf("B%d", lineIndex), "Name")
-			addBoldCell(f, sheet, fmt.Sprintf("C%d", lineIndex), "Criteria")
+			err = addBoldCell(f, sheet, fmt.Sprintf("B%d", lineIndex), "Name")
+			if err != nil {
+				return err
+			}
+
+			err = addBoldCell(f, sheet, fmt.Sprintf("C%d", lineIndex), "Criteria")
+			if err != nil {
+				return err
+			}
+
 			lineIndex++
 
 			for _, alertRule := range resource.AlertRules {
-				writeCell(f, sheet, fmt.Sprintf("B%d", lineIndex), alertRule.Name)
+				err = writeCell(f, sheet, fmt.Sprintf("B%d", lineIndex), alertRule.Name)
+				if err != nil {
+					return err
+				}
 
 				for _, criterion := range alertRule.Criteria.AllOf {
 					criterionOutput := fmt.Sprintf("%s %s %s %s", criterion.TimeAggregation,
@@ -79,50 +102,110 @@ func writeResourceAlerts(f *excelize.File, sheet string, resources map[string]az
 						criterion.Operator,
 						fmt.Sprintf("%.2f", criterion.Threshold),
 					)
-					writeCell(f, sheet, fmt.Sprintf("C%d", lineIndex), criterionOutput)
+					err = writeCell(f, sheet, fmt.Sprintf("C%d", lineIndex), criterionOutput)
+					if err != nil {
+						return err
+					}
+
 					lineIndex++
 				}
 			}
 		}
 	}
+
+	return nil
 }
 
-func writeResourceBackups(f *excelize.File, vms map[string]azure.Resource) {
+func writeResourceBackups(f *excelize.File, vms map[string]azure.Resource) error {
 	lineIndex := 1
 	for _, vm := range vms {
-		writeCell(f, "Backups", fmt.Sprintf("A%d", lineIndex), vm.Name)
+		err := writeCell(f, "Backups", fmt.Sprintf("A%d", lineIndex), vm.Name)
+		if err != nil {
+			return err
+		}
+
 		if vm.BackupVault != nil {
-			writeCell(f, "Backups", fmt.Sprintf("B%d", lineIndex), vm.BackupVault.Name)
+			err = writeCell(f, "Backups", fmt.Sprintf("B%d", lineIndex), vm.BackupVault.Name)
+			if err != nil {
+				return err
+			}
+
 		} else {
-			writeCell(f, "Backups", fmt.Sprintf("B%d", lineIndex), "Not backed up")
+			err = writeCell(f, "Backups", fmt.Sprintf("B%d", lineIndex), "Not backed up")
+			if err != nil {
+				return err
+			}
+
 		}
 		lineIndex++
 	}
+
+	return nil
 }
 
-func writeRecommendations(f *excelize.File, recommendations map[string][]azure.AdvisorRecommendation) {
+func writeRecommendations(f *excelize.File, recommendations map[string][]azure.AdvisorRecommendation) error {
 	for category, categoryRecommendations := range recommendations {
 		sheetTitle := fmt.Sprintf("%s Recs", category)
 		f.NewSheet(sheetTitle)
 		index := 1
 
-		writeCell(f, sheetTitle, fmt.Sprintf("A%d", index), "Recommendation")
-		writeCell(f, sheetTitle, fmt.Sprintf("B%d", index), "Impact")
-		writeCell(f, sheetTitle, fmt.Sprintf("C%d", index), "Resource type")
-		writeCell(f, sheetTitle, fmt.Sprintf("D%d", index), "Affected resource")
-		writeCell(f, sheetTitle, fmt.Sprintf("E%d", index), "Resource group")
+		err := writeCell(f, sheetTitle, fmt.Sprintf("A%d", index), "Recommendation")
+		if err != nil {
+			return err
+		}
+		err = writeCell(f, sheetTitle, fmt.Sprintf("B%d", index), "Impact")
+		if err != nil {
+			return err
+		}
+
+		err = writeCell(f, sheetTitle, fmt.Sprintf("C%d", index), "Resource type")
+		if err != nil {
+			return err
+		}
+
+		err = writeCell(f, sheetTitle, fmt.Sprintf("D%d", index), "Affected resource")
+		if err != nil {
+			return err
+		}
+
+		err = writeCell(f, sheetTitle, fmt.Sprintf("E%d", index), "Resource group")
+		if err != nil {
+			return err
+		}
 
 		index++
 
 		for i := 0; i < len(categoryRecommendations); i++ {
-			writeCell(f, sheetTitle, fmt.Sprintf("A%d", index+1), categoryRecommendations[i].Description.Problem)
-			writeCell(f, sheetTitle, fmt.Sprintf("B%d", index+1), categoryRecommendations[i].Impact)
-			writeCell(f, sheetTitle, fmt.Sprintf("C%d", index+1), categoryRecommendations[i].ResourceType)
-			writeCell(f, sheetTitle, fmt.Sprintf("D%d", index+1), categoryRecommendations[i].AffectedResource)
-			writeCell(f, sheetTitle, fmt.Sprintf("E%d", index+1), categoryRecommendations[i].ResourceGroup)
+			err = writeCell(f, sheetTitle, fmt.Sprintf("A%d", index+1), categoryRecommendations[i].Description.Problem)
+			if err != nil {
+				return err
+			}
+
+			err = writeCell(f, sheetTitle, fmt.Sprintf("B%d", index+1), categoryRecommendations[i].Impact)
+			if err != nil {
+				return err
+			}
+
+			err = writeCell(f, sheetTitle, fmt.Sprintf("C%d", index+1), categoryRecommendations[i].ResourceType)
+			if err != nil {
+				return err
+			}
+
+			err = writeCell(f, sheetTitle, fmt.Sprintf("D%d", index+1), categoryRecommendations[i].AffectedResource)
+			if err != nil {
+				return err
+			}
+
+			err = writeCell(f, sheetTitle, fmt.Sprintf("E%d", index+1), categoryRecommendations[i].ResourceGroup)
+			if err != nil {
+				return err
+			}
+
 			index++
 		}
 	}
+
+	return nil
 }
 
 func OutputExcelDocument(
@@ -135,56 +218,91 @@ func OutputExcelDocument(
 	storageAccounts map[string]azure.Resource,
 	webApps map[string]azure.Resource,
 	recommendations map[string][]azure.AdvisorRecommendation,
-) {
+) error {
 	f := excelize.NewFile()
 
 	if len(vms) > 0 {
 		f.SetSheetName("Sheet1", "VM Alerts")
-		writeResourceAlerts(f, "VM Alerts", vms)
+		err := writeResourceAlerts(f, "VM Alerts", vms)
+		if err != nil {
+			return err
+		}
+
 	} else {
 		f.DeleteSheet("Sheet1")
 	}
 
 	if len(aksClusters) > 0 {
 		f.NewSheet("AKS Cluster Alerts")
-		writeResourceAlerts(f, "AKS Cluster Alerts", aksClusters)
+		err := writeResourceAlerts(f, "AKS Cluster Alerts", aksClusters)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	if len(mySQLServers) > 0 {
 		f.NewSheet("MySQL Server Alerts")
-		writeResourceAlerts(f, "MySQL Server Alerts", mySQLServers)
+		err := writeResourceAlerts(f, "MySQL Server Alerts", mySQLServers)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	if len(flexibleMySQLServers) > 0 {
 		f.NewSheet("Flexible MySQL Server Alerts")
-		writeResourceAlerts(f, "Flexible MySQL Server Alerts", flexibleMySQLServers)
+		err := writeResourceAlerts(f, "Flexible MySQL Server Alerts", flexibleMySQLServers)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	if len(sqlServers) > 0 {
 		f.NewSheet("SQL Server Alerts")
-		writeResourceAlerts(f, "SQL Server Alerts", sqlServers)
+		err := writeResourceAlerts(f, "SQL Server Alerts", sqlServers)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	if len(storageAccounts) > 0 {
 		f.NewSheet("Storage Account Alerts")
-		writeResourceAlerts(f, "Storage Account Alerts", storageAccounts)
+		err := writeResourceAlerts(f, "Storage Account Alerts", storageAccounts)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	if len(webApps) > 0 {
 		f.NewSheet("Web App Alerts")
-		writeResourceAlerts(f, "Web App Alerts", webApps)
+		err := writeResourceAlerts(f, "Web App Alerts", webApps)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	// Backups
 	f.NewSheet("Backups")
-	writeResourceBackups(f, vms)
+	err := writeResourceBackups(f, vms)
+	if err != nil {
+		return err
+	}
 
-	writeRecommendations(f, recommendations)
+	err = writeRecommendations(f, recommendations)
+	if err != nil {
+		return err
+	}
 
 	filename := fmt.Sprintf("%s.xlsx", outputFilename)
 	if err := f.SaveAs(filename); err != nil {
-		fmt.Println("Could not save output document", err)
-	} else {
-		fmt.Println(fmt.Sprintf("Saved excel file to %s", filename))
+		return err
 	}
+	fmt.Println(fmt.Sprintf("Saved excel file to %s", filename))
+
+	return nil
 }

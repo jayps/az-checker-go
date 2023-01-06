@@ -3,7 +3,6 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -30,17 +29,20 @@ type AlertRule struct {
 	Criteria AlertRuleCriteria `json:"criteria"`
 }
 
-func FetchAlertRules() []AlertRule {
+func FetchAlertRules() ([]AlertRule, error) {
 	fmt.Println("Fetching alert rules...")
-	output := RunCommand("az monitor metrics alert list")
+	output, err := RunCommand("az monitor metrics alert list")
+	if err != nil {
+		return nil, err
+	}
 	var alertRules []AlertRule
-	err := json.Unmarshal(output, &alertRules)
+	err = json.Unmarshal(output, &alertRules)
 
 	if err != nil {
-		log.Fatalln("Could not load alert rules", err.Error())
+		return nil, err
 	}
 
-	return alertRules
+	return alertRules, nil
 }
 
 func AssignAlertRulesToResources(rules []AlertRule, resources map[string]Resource) {

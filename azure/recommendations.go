@@ -3,7 +3,6 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 )
 
 type ShortDescription struct {
@@ -19,14 +18,17 @@ type AdvisorRecommendation struct {
 	Category         string           `json:"category"`
 }
 
-func FetchAdvisorRecommendations() map[string][]AdvisorRecommendation {
+func FetchAdvisorRecommendations() (map[string][]AdvisorRecommendation, error) {
 	fmt.Println("Fetching advisor recommendations...")
-	output := RunCommand("az advisor recommendation list")
+	output, err := RunCommand("az advisor recommendation list")
+	if err != nil {
+		return nil, err
+	}
 	var recommendations []AdvisorRecommendation
-	err := json.Unmarshal(output, &recommendations)
+	err = json.Unmarshal(output, &recommendations)
 
 	if err != nil {
-		log.Fatalln("Could not load advisor recommendations: ", err.Error())
+		return nil, err
 	}
 
 	result := make(map[string][]AdvisorRecommendation)
@@ -40,5 +42,5 @@ func FetchAdvisorRecommendations() map[string][]AdvisorRecommendation {
 		}
 	}
 
-	return result
+	return result, nil
 }

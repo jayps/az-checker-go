@@ -1,8 +1,6 @@
 package azure
 
 import (
-	"fmt"
-	"log"
 	"os/exec"
 	"runtime"
 )
@@ -15,11 +13,6 @@ func Execute(command string) ([]byte, error) {
 	return exec.Command("bash", "-c", command).Output()
 }
 
-func RunCommand(command string) []byte {
-	output, err := Execute(command)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Command '%s' failed with error %s", command, err.Error()))
-	}
-
-	return output
+func RunCommand(command string) ([]byte, error) {
+	return Execute(command)
 }
