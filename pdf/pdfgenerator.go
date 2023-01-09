@@ -189,10 +189,14 @@ func (g Generator) GeneratePatchesSection() string {
 		for _, patch := range vm.PatchAssessmentResult.AvailablePatches {
 			output += "<div class='mb-1 page-break-avoid bg-grey p-1'>"
 			output += fmt.Sprintf("<strong>Patch Name: %s</strong><br />", patch.Name)
-			output += fmt.Sprintf("<strong>Patch ID: %s</strong><br />", patch.PatchId)
-			output += fmt.Sprintf("<strong>KB ID: %s</strong><br />", patch.KbId)
-			output += fmt.Sprintf("<strong>Version: %s</strong><br />", patch.Version)
-			output += fmt.Sprintf("<strong>Reboot: %s</strong><br />", patch.RebootBehavior)
+			if patch.PatchId != "" {
+				output += fmt.Sprintf("<strong>Patch ID: </strong>%s<br />", patch.PatchId)
+			}
+			if patch.KbId != "" {
+				output += fmt.Sprintf("<strong>KB ID: </strong>%s<br />", patch.KbId)
+			}
+			output += fmt.Sprintf("<strong>Version: </strong>%s<br />", patch.Version)
+			output += fmt.Sprintf("<strong>Reboot: </strong>%s<br />", patch.RebootBehavior)
 			output += "</div>" // page break avoid
 		}
 	}
