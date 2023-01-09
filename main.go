@@ -126,6 +126,7 @@ func main() {
 
 		g := pdf.NewGenerator()
 		g.ClientName = clientName
+		g.SubscriptionId = subscriptionId
 		g.OutputFilename = outputFilename
 		g.VirtualMachines = vms
 		g.AzureKubernetesServices = aksClusters

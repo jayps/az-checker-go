@@ -11,6 +11,7 @@ import (
 type Generator struct {
 	Head                    string `default:"test"`
 	ClientName              string `default:"Client"`
+	SubscriptionId          string
 	OutputFilename          string
 	VirtualMachines         map[string]azure.Resource
 	AzureKubernetesServices map[string]azure.Resource
@@ -128,7 +129,7 @@ func (g Generator) GenerateAlertRulesSection(title string, resources map[string]
 		output += fmt.Sprintf("<h3>%s</h3>", resource.Name)
 		if len(resource.AlertRules) == 0 {
 			output += "<span class='danger'>No alert rules are configured for this resource.</span><br />"
-			output += "<strong>Action to be performed: If this alert is used in production, create resource alert rules. We do not monitor non-production resources.</strong>"
+			output += "<strong>Action to be performed: </strong>If this alert is used in production, create resource alert rules. We do not monitor non-production resources."
 		} else {
 			output += fmt.Sprintf("This resource has %d alert rules configured:<br /><br />", len(resource.AlertRules))
 			output += "<div class='bg-grey p-1'>"
@@ -250,6 +251,9 @@ func (g Generator) GeneratePDF() error {
 <h2>
 {clientName}
 </h2>
+<h3>
+Subscription ID: {subscriptionId}
+</h3>
 <p>
 Document Date: {date}
 </p>
@@ -272,6 +276,7 @@ Document Date: {date}
 		"{headContent}", g.Head,
 		"{title}", "Tangent Solutions Managed Services Report",
 		"{clientName}", g.ClientName,
+		"{subscriptionId}", g.SubscriptionId,
 		"{date}", fmt.Sprintf("%d-%d-%d", now.Year(), now.Month(), now.Day()),
 		"{vmAlerts}", g.GenerateAlertRulesSection("Virtual Machines", g.VirtualMachines),
 		"{aksAlerts}", g.GenerateAlertRulesSection("Azure Kubernetes Services", g.AzureKubernetesServices),
