@@ -7,6 +7,7 @@ import (
 	"github.com/jayps/azure-checker-go/pdf"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -108,17 +109,24 @@ func main() {
 			log.Fatalln("Could not fetch advisor recommendations: ", err.Error())
 		}
 
-		for key, vm := range vms {
-			err = azure.AssessPatches(&vm)
-			if err != nil {
-				log.Fatalln(fmt.Sprintf("Could not assess patches for VM %s: ", vm.Name), err.Error())
-			}
-			fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
-			vms[key] = vm // range gives us a copy of the vm we are working with, so we reassign it back to the map.
-		}
+		patchResults := make(chan azure.PatchResult, len(vms))
+		var wg sync.WaitGroup
+		wg.Add(len(vms))
+
+		fmt.Println(fmt.Sprintf("Created queue for %d VMs...", len(vms)))
 
 		for _, vm := range vms {
-			fmt.Println(fmt.Sprintf("POST ASSESSMENT: %d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
+			vm := vm // Don't remove this. It's for the iteration variable in the range loop. Otherwise you end up with the &vm below constantly pointing to the same object.
+			go azure.AssessPatches(&vm, patchResults, &wg)
+		}
+
+		go func() {
+			defer close(patchResults)
+			wg.Wait()
+		}()
+
+		for patchResult := range patchResults {
+			vms[strings.ToLower(patchResult.VM.Id)] = *patchResult.VM
 		}
 
 		now := time.Now()

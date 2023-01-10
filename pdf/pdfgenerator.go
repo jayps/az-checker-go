@@ -183,7 +183,6 @@ func (g Generator) GeneratePatchesSection() string {
 	output := "<div class='page-break-before'>"
 	output += fmt.Sprintf("<h2>Virtual Machine Patches</h2>")
 	for _, vm := range g.VirtualMachines {
-		fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
 		output += fmt.Sprintf("<h3>%s</h3>", vm.Name)
 		output += fmt.Sprintf("<span class='mb-1'>%d patches available.", len(vm.PatchAssessmentResult.AvailablePatches))
 		for _, patch := range vm.PatchAssessmentResult.AvailablePatches {
