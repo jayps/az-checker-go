@@ -111,7 +111,8 @@ func main() {
 		for key, vm := range vms {
 			err = azure.AssessPatches(&vm)
 			if err != nil {
-				log.Fatalln(fmt.Sprintf("Could not assess patches for VM %s: ", vm.Name), err.Error())
+				// log.Fatalln(fmt.Sprintf("Could not assess patches for VM %s: ", vm.Name), err.Error())
+				fmt.Println(fmt.Sprintf("Could not assess patches for VM %s: %s", vm.Name, err.Error()))
 			}
 			fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
 			vms[key] = vm // range gives us a copy of the vm we are working with, so we reassign it back to the map.
