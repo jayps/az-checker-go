@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -35,15 +36,20 @@ type PatchAssessmentResult struct {
 	Status          string    `json:"status"`
 }
 
-func AssessPatches(vm *Resource) error {
+type PatchResult struct {
+	VM  Resource
+	Err error
+}
+
+func AssessPatches(vm Resource, patchResults chan<- PatchResult, wg *sync.WaitGroup) {
 	// TODO: Make this nicelier. It's not great but I'm in a rush.
-	complete := make(chan error, 1)
+	complete := make(chan PatchResult, 1)
 	go func() {
 		fmt.Println(fmt.Sprintf("Assessing patches for VM: %s... This might take a minute. Grab some coffee.", vm.Name))
 		output, err := RunCommand(fmt.Sprintf("az vm assess-patches -n %s -g %s", vm.Name, vm.ResourceGroup))
 
 		if err != nil {
-			complete <- err
+			complete <- PatchResult{vm, err}
 		}
 
 		var patchAssessmentResult PatchAssessmentResult
@@ -52,15 +58,17 @@ func AssessPatches(vm *Resource) error {
 
 		// Don't necessarily crash on this, just alert the user to it.
 		if err != nil {
-			complete <- err
+			complete <- PatchResult{vm, err}
 		}
 
-		complete <- nil
+		complete <- PatchResult{vm, nil}
 	}()
 	select {
 	case res := <-complete:
-		return res
+		patchResults <- res
 	case <-time.After(5 * time.Minute):
-		return errors.New(fmt.Sprintf("Timeout after 5 minutes while checking patches for VM: %s", vm.Name))
+		patchResults <- PatchResult{vm, errors.New(fmt.Sprintf("Timeout after 5 minutes while checking patches for VM: %s", vm.Name))}
 	}
+
+	wg.Done()
 }
