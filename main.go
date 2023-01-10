@@ -111,11 +111,13 @@ func main() {
 
 		patchResults := make(chan azure.PatchResult, len(vms))
 		var wg sync.WaitGroup
+		wg.Add(len(vms))
 
-		for key := range vms {
-			wg.Add(1)
-			fmt.Println("Sending VM for patch check", vms[key].Name)
-			go azure.AssessPatches(vms[key], patchResults, &wg)
+		fmt.Println(fmt.Sprintf("Created queue for %d VMs...", len(vms)))
+
+		for _, vm := range vms {
+			vm := vm // Don't remove this. It's for the iteration variable in the range loop. Otherwise you end up with the &vm below constantly pointing to the same object.
+			go azure.AssessPatches(&vm, patchResults, &wg)
 		}
 
 		go func() {
@@ -123,25 +125,9 @@ func main() {
 			wg.Wait()
 		}()
 
-		// TODO: Figure out why this is being doubled up.
 		for patchResult := range patchResults {
-			if patchResult.Err != nil {
-				fmt.Println(fmt.Sprintf("Could not assess patches for VM %s: %s", patchResult.VM.Name, patchResult.Err.Error()))
-			} else {
-				fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", patchResult.VM.PatchAssessmentResult.CriticalAndSecurityPatchCount, patchResult.VM.PatchAssessmentResult.OtherPatchCount, patchResult.VM.Name))
-				vms[patchResult.VM.Id] = patchResult.VM
-			}
+			vms[strings.ToLower(patchResult.VM.Id)] = *patchResult.VM
 		}
-
-		//for key, vm := range vms {
-		//	err = azure.AssessPatches(&vm)
-		//	if err != nil {
-		//		// log.Fatalln(fmt.Sprintf("Could not assess patches for VM %s: ", vm.Name), err.Error())
-		//		fmt.Println(fmt.Sprintf("Could not assess patches for VM %s: %s", vm.Name, err.Error()))
-		//	}
-		//	fmt.Println(fmt.Sprintf("%d cricial patches, %d other patches for %s", vm.PatchAssessmentResult.CriticalAndSecurityPatchCount, vm.PatchAssessmentResult.OtherPatchCount, vm.Name))
-		//	vms[key] = vm // range gives us a copy of the vm we are working with, so we reassign it back to the map.
-		//}
 
 		now := time.Now()
 		outputFilename := fmt.Sprintf("%s-%s-%d-%d-%d", clientName, subscriptionId, now.Year(), now.Month(), now.Day())
