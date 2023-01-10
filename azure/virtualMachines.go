@@ -2,6 +2,7 @@ package azure
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -35,21 +36,31 @@ type PatchAssessmentResult struct {
 }
 
 func AssessPatches(vm *Resource) error {
-	fmt.Println(fmt.Sprintf("Assessing patches for VM: %s... This might take a minute. Grab some coffee.", vm.Name))
-	output, err := RunCommand(fmt.Sprintf("az vm assess-patches -n %s -g %s", vm.Name, vm.ResourceGroup))
+	// TODO: Make this nicelier. It's not great but I'm in a rush.
+	complete := make(chan error, 1)
+	go func() {
+		fmt.Println(fmt.Sprintf("Assessing patches for VM: %s... This might take a minute. Grab some coffee.", vm.Name))
+		output, err := RunCommand(fmt.Sprintf("az vm assess-patches -n %s -g %s", vm.Name, vm.ResourceGroup))
 
-	if err != nil {
-		return err
+		if err != nil {
+			complete <- err
+		}
+
+		var patchAssessmentResult PatchAssessmentResult
+		err = json.Unmarshal(output, &patchAssessmentResult)
+		vm.PatchAssessmentResult = patchAssessmentResult
+
+		// Don't necessarily crash on this, just alert the user to it.
+		if err != nil {
+			complete <- err
+		}
+
+		complete <- nil
+	}()
+	select {
+	case res := <-complete:
+		return res
+	case <-time.After(5 * time.Minute):
+		return errors.New(fmt.Sprintf("Timeout after 5 minutes while checking patches for VM: %s", vm.Name))
 	}
-
-	var patchAssessmentResult PatchAssessmentResult
-	err = json.Unmarshal(output, &patchAssessmentResult)
-	vm.PatchAssessmentResult = patchAssessmentResult
-
-	// Don't necessarily crash on this, just alert the user to it.
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
