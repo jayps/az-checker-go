@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/jayps/azure-checker-go/azure"
-	"github.com/jayps/azure-checker-go/excel"
-	"github.com/jayps/azure-checker-go/pdf"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jayps/azure-checker-go/azure"
+	"github.com/jayps/azure-checker-go/excel"
+	"github.com/jayps/azure-checker-go/pdf"
 )
 
 func getSubscriptionIds() []string {
@@ -51,6 +52,11 @@ func main() {
 
 		// Fetch resources
 		vms, err := azure.FetchVMs()
+		if err != nil {
+			log.Fatalln("Could not fetch VMs: ", err.Error())
+		}
+
+		vmsDeallocated, err := azure.FetchDeallocatedVMs()
 		if err != nil {
 			log.Fatalln("Could not fetch VMs: ", err.Error())
 		}
@@ -120,6 +126,12 @@ func main() {
 			go azure.AssessPatches(&vm, patchResults, &wg)
 		}
 
+		fmt.Println("Deallocated VM's")
+		for _, vm := range vmsDeallocated {
+			fmt.Println(vm.Name)
+		}
+		fmt.Println("")
+
 		go func() {
 			defer close(patchResults)
 			wg.Wait()
@@ -137,6 +149,7 @@ func main() {
 		g.SubscriptionId = subscriptionId
 		g.OutputFilename = outputFilename
 		g.VirtualMachines = vms
+		g.VirtualMachinesDeallocated = vmsDeallocated
 		g.AzureKubernetesServices = aksClusters
 		g.MySQLServers = mySQLServers
 		g.FlexibleMySQLServers = flexibleMySQLServers
@@ -146,11 +159,13 @@ func main() {
 		g.Recommendations = recommendations
 		err = g.GeneratePDF()
 		if err != nil {
-			log.Fatalln(err)
+			log.Println("Could not generate pdf report: ", err.Error())
 		}
+
 		err = excel.OutputExcelDocument(
 			outputFilename,
 			vms,
+			vmsDeallocated,
 			aksClusters,
 			mySQLServers,
 			flexibleMySQLServers,

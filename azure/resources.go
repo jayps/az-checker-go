@@ -46,8 +46,15 @@ func getResourceMap(command string, name string) (map[string]Resource, error) {
 }
 
 func FetchVMs() (map[string]Resource, error) {
-	command := "az vm list"
+	command := "az vm list -d --query \"[?powerState=='VM running']\""
 	resourceName := "virtual machines"
+
+	return getResourceMap(command, resourceName)
+}
+
+func FetchDeallocatedVMs() (map[string]Resource, error) {
+	command := "az vm list -d --query \"[?powerState!='VM running']\""
+	resourceName := "deallocated virtual machines"
 
 	return getResourceMap(command, resourceName)
 }
