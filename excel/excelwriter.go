@@ -2,6 +2,7 @@ package excel
 
 import (
 	"fmt"
+
 	"github.com/jayps/azure-checker-go/azure"
 	"github.com/xuri/excelize/v2"
 )
@@ -208,9 +209,76 @@ func writeRecommendations(f *excelize.File, recommendations map[string][]azure.A
 	return nil
 }
 
+func writeVMsDeallocated(f *excelize.File, sheetName string, vms map[string]azure.Resource) error {
+	lineIndex := 1
+	for _, vm := range vms {
+		err := writeCell(f, sheetName, fmt.Sprintf("A%d", lineIndex), vm.Name)
+		if err != nil {
+			return err
+		}
+		lineIndex++
+	}
+
+	return nil
+}
+
+func writeVMsPatches(f *excelize.File, sheetName string, vms map[string]azure.Resource) error {
+	lineIndex := 1
+	// Write header columns
+	err := addHeading(f, sheetName, fmt.Sprintf("A%d", lineIndex), "VM Name")
+	err = addHeading(f, sheetName, fmt.Sprintf("B%d", lineIndex), "Patch Name")
+	err = addHeading(f, sheetName, fmt.Sprintf("C%d", lineIndex), "Classification")
+	err = addHeading(f, sheetName, fmt.Sprintf("D%d", lineIndex), "Patch ID")
+	err = addHeading(f, sheetName, fmt.Sprintf("E%d", lineIndex), "KB ID")
+	err = addHeading(f, sheetName, fmt.Sprintf("F%d", lineIndex), "Reboot")
+	err = addHeading(f, sheetName, fmt.Sprintf("G%d", lineIndex), "Version")
+	if err != nil {
+		return err
+	}
+	lineIndex++
+	for _, vm := range vms {
+		err := addBoldCell(f, sheetName, fmt.Sprintf("A%d", lineIndex), vm.Name)
+		if err != nil {
+			return err
+		}
+
+		for _, patch := range vm.PatchAssessmentResult.AvailablePatches {
+			err = writeCell(f, sheetName, fmt.Sprintf("B%d", lineIndex), patch.Name)
+			if err != nil {
+				return err
+			}
+			err = writeCell(f, sheetName, fmt.Sprintf("C%d", lineIndex), patch.Classifications[0])
+			if err != nil {
+				return err
+			}
+			err = writeCell(f, sheetName, fmt.Sprintf("D%d", lineIndex), patch.PatchId)
+			if err != nil {
+				return err
+			}
+			err = writeCell(f, sheetName, fmt.Sprintf("E%d", lineIndex), patch.KbId)
+			if err != nil {
+				return err
+			}
+			err = writeCell(f, sheetName, fmt.Sprintf("F%d", lineIndex), patch.RebootBehavior)
+			if err != nil {
+				return err
+			}
+			err = writeCell(f, sheetName, fmt.Sprintf("G%d", lineIndex), patch.Version)
+			if err != nil {
+				return err
+			}
+			lineIndex++
+		}
+		lineIndex++
+	}
+
+	return nil
+}
+
 func OutputExcelDocument(
 	outputFilename string,
 	vms map[string]azure.Resource,
+	vmsDeallocated map[string]azure.Resource,
 	aksClusters map[string]azure.Resource,
 	mySQLServers map[string]azure.Resource,
 	flexibleMySQLServers map[string]azure.Resource,
@@ -228,8 +296,23 @@ func OutputExcelDocument(
 			return err
 		}
 
+		sheetName := "VM Patches"
+		f.NewSheet(sheetName)
+		err = writeVMsPatches(f, sheetName, vms)
+		if err != nil {
+			return err
+		}
 	} else {
 		f.DeleteSheet("Sheet1")
+	}
+
+	if len(vmsDeallocated) > 0 {
+		sheetName := "VM's Deallocated"
+		f.NewSheet(sheetName)
+		err := writeVMsDeallocated(f, sheetName, vmsDeallocated)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(aksClusters) > 0 {
@@ -238,7 +321,6 @@ func OutputExcelDocument(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if len(mySQLServers) > 0 {
@@ -247,7 +329,6 @@ func OutputExcelDocument(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if len(flexibleMySQLServers) > 0 {
@@ -256,7 +337,6 @@ func OutputExcelDocument(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if len(sqlServers) > 0 {
@@ -265,7 +345,6 @@ func OutputExcelDocument(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if len(storageAccounts) > 0 {
@@ -274,7 +353,6 @@ func OutputExcelDocument(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if len(webApps) > 0 {
@@ -283,7 +361,6 @@ func OutputExcelDocument(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	// Backups

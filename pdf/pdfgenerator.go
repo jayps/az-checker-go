@@ -2,25 +2,27 @@ package pdf
 
 import (
 	"fmt"
-	wkhtml "github.com/SebastiaanKlippert/go-wkhtmltopdf"
-	"github.com/jayps/azure-checker-go/azure"
 	"strings"
 	"time"
+
+	wkhtml "github.com/SebastiaanKlippert/go-wkhtmltopdf"
+	"github.com/jayps/azure-checker-go/azure"
 )
 
 type Generator struct {
-	Head                    string `default:"test"`
-	ClientName              string `default:"Client"`
-	SubscriptionId          string
-	OutputFilename          string
-	VirtualMachines         map[string]azure.Resource
-	AzureKubernetesServices map[string]azure.Resource
-	MySQLServers            map[string]azure.Resource
-	FlexibleMySQLServers    map[string]azure.Resource
-	SqlServers              map[string]azure.Resource
-	StorageAccounts         map[string]azure.Resource
-	WebApps                 map[string]azure.Resource
-	Recommendations         map[string][]azure.AdvisorRecommendation
+	Head                       string `default:"test"`
+	ClientName                 string `default:"Client"`
+	SubscriptionId             string
+	OutputFilename             string
+	VirtualMachines            map[string]azure.Resource
+	VirtualMachinesDeallocated map[string]azure.Resource
+	AzureKubernetesServices    map[string]azure.Resource
+	MySQLServers               map[string]azure.Resource
+	FlexibleMySQLServers       map[string]azure.Resource
+	SqlServers                 map[string]azure.Resource
+	StorageAccounts            map[string]azure.Resource
+	WebApps                    map[string]azure.Resource
+	Recommendations            map[string][]azure.AdvisorRecommendation
 }
 
 func NewGenerator() Generator {
@@ -176,6 +178,20 @@ func (g Generator) GenerateBackupsSection() string {
 	return output
 }
 
+func (g Generator) GenerateDeallocatedVMsSection() string {
+	if len(g.VirtualMachinesDeallocated) == 0 {
+		return ""
+	}
+	output := "<div class='page-break-before'>"
+	output += fmt.Sprintf("<h2>Deallocated Virtual Machines</h2>")
+	for _, vm := range g.VirtualMachines {
+		output += fmt.Sprintf("<h3>%s</h3>", vm.Name)
+	}
+	output += "</div>" // page break before
+
+	return output
+}
+
 func (g Generator) GeneratePatchesSection() string {
 	if len(g.VirtualMachines) == 0 {
 		return ""
@@ -265,6 +281,7 @@ Document Date: {date}
 {storageAccounts}
 {webApps}
 {backups}
+{deallocatedVMs}
 {recommendations}
 {patches}
 </body>
@@ -287,6 +304,7 @@ Document Date: {date}
 		"{backups}", g.GenerateBackupsSection(),
 		"{patches}", g.GeneratePatchesSection(),
 		"{recommendations}", g.GenerateRecommendationsSections(),
+		"{deallocatedVMs}", g.GenerateDeallocatedVMsSection(),
 	)
 	populatedHtml := documentReplacer.Replace(htmlStr)
 
